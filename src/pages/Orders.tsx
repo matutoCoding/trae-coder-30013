@@ -1,207 +1,374 @@
 import { useState } from 'react';
-import { ShoppingCart, Package, Truck, Plus, Clock, Gift } from 'lucide-react';
+import { ShoppingCart, Package, Truck, Plus, Clock, Gift, ChevronRight } from 'lucide-react';
 import { Order, OrderItem } from '@/data/mockData';
 import { useStore } from '@/store/useStore';
 
-const statusConfig: Record<Order['status'], { color: string; bg: string }> = {
-  '待排产': { color: 'text-xuan-gold', bg: 'bg-xuan-gold/15' },
-  '生产中': { color: 'text-xuan-ochre', bg: 'bg-xuan-ochre/15' },
-  '已完成': { color: 'text-xuan-moss', bg: 'bg-xuan-moss/15' },
-  '已发货': { color: 'text-xuan-indigo', bg: 'bg-xuan-indigo/15' },
+const statusBadge: Record<Order['status'], string> = {
+  '待排产': 'bg-xuan-gold/20 text-xuan-gold border-xuan-gold/30',
+  '生产中': 'bg-xuan-ochre/20 text-xuan-ochre border-xuan-ochre/30',
+  '已完成': 'bg-xuan-moss/20 text-xuan-moss border-xuan-moss/30',
+  '已发货': 'bg-xuan-indigo/20 text-xuan-indigo border-xuan-indigo/30',
 };
 
+const statusFlow: Order['status'][] = ['待排产', '生产中', '已完成', '已发货'];
+
 const combos = [
-  { name: '书画入门套装', price: 368, items: ['4尺棉料×50张', '毛笔1支', '墨1锭'], desc: '初学者首选' },
-  { name: '名家精品套装', price: 1280, items: ['6尺净皮×30张', '湖笔1支', '徽墨1锭', '歙砚1方'], desc: '进阶创作之选' },
-  { name: '大师典藏套装', price: 3680, items: ['丈二特皮×10张', '狼毫1支', '松烟墨1锭', '端砚1方'], desc: '传世珍藏' },
+  {
+    id: 'combo1',
+    name: '书画入门套装',
+    price: 368,
+    desc: '适合初学者练习使用',
+    items: [
+      { spec: '四尺', grade: '棉料', qty: 100, price: 15 },
+      { name: '兼毫毛笔', qty: 2, price: 48 },
+      { name: '练习墨汁', qty: 2, price: 32 },
+    ],
+    badge: '入门之选',
+    badgeColor: 'bg-xuan-indigo/20 text-xuan-indigo',
+  },
+  {
+    id: 'combo2',
+    name: '名家精品套装',
+    price: 1280,
+    desc: '专业书画家常用款',
+    items: [
+      { spec: '六尺', grade: '净皮', qty: 50, price: 45 },
+      { name: '湖笔精选', qty: 4, price: 128 },
+      { name: '徽墨二两', qty: 2, price: 168 },
+      { name: '歙砚一方', qty: 1, price: 280 },
+    ],
+    badge: '畅销爆款',
+    badgeColor: 'bg-xuan-ochre/20 text-xuan-ochre',
+  },
+  {
+    id: 'combo3',
+    name: '大师典藏套装',
+    price: 3680,
+    desc: '收藏级品质礼盒装',
+    items: [
+      { spec: '丈二', grade: '特皮', qty: 20, price: 180 },
+      { name: '精品狼毫', qty: 4, price: 380 },
+      { name: '松烟墨条', qty: 4, price: 280 },
+      { name: '端砚精品', qty: 1, price: 1200 },
+    ],
+    badge: '典藏臻品',
+    badgeColor: 'bg-xuan-gold/20 text-xuan-gold',
+  },
 ];
 
-function getCountdown(deliveryDate: string) {
-  const diff = new Date(deliveryDate).getTime() - Date.now();
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-  return days;
-}
-
-const emptyItem = (): OrderItem => ({ specification: '四尺', grade: '棉料', quantity: 100, unitPrice: 15 });
+const emptyItem: OrderItem = {
+  specification: '四尺',
+  grade: '净皮',
+  quantity: 0,
+  unitPrice: 25,
+};
 
 export default function Orders() {
   const { orders, addOrder, updateOrder } = useStore();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    customer: '',
-    deliveryDate: '',
-    items: [emptyItem()],
-    status: '待排产' as Order['status'],
-  });
+  const [formCustomer, setFormCustomer] = useState('');
+  const [formDelivery, setFormDelivery] = useState('');
+  const [formStatus, setFormStatus] = useState<Order['status']>('待排产');
+  const [formItems, setFormItems] = useState<OrderItem[]>([{ ...emptyItem }]);
 
   const totalAmount = orders.reduce((s, o) => s + o.totalAmount, 0);
-  const pendingCount = orders.filter(o => o.status === '待排产').length;
-  const producingCount = orders.filter(o => o.status === '生产中').length;
-  const shippedCount = orders.filter(o => o.status === '已发货').length;
+  const pending = orders.filter((o) => o.status === '待排产').length;
+  const producing = orders.filter((o) => o.status === '生产中').length;
+  const shipped = orders.filter((o) => o.status === '已发货').length;
 
-  const summaryCards = [
-    { label: '总订单额', value: `¥${totalAmount.toLocaleString()}`, icon: ShoppingCart, color: 'text-xuan-ochre', bg: 'bg-xuan-ochre/10', border: 'border-xuan-ochre/20' },
-    { label: '待排产', value: pendingCount, unit: '单', icon: Clock, color: 'text-xuan-gold', bg: 'bg-xuan-gold/10', border: 'border-xuan-gold/20' },
-    { label: '生产中', value: producingCount, unit: '单', icon: Package, color: 'text-xuan-ochre', bg: 'bg-xuan-ochre/10', border: 'border-xuan-ochre/20' },
-    { label: '已发货', value: shippedCount, unit: '单', icon: Truck, color: 'text-xuan-indigo', bg: 'bg-xuan-indigo/10', border: 'border-xuan-indigo/20' },
-  ];
+  const itemsTotal = formItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+
+  const addItem = () => setFormItems((prev) => [...prev, { ...emptyItem }]);
+  const removeItem = (idx: number) => setFormItems((prev) => prev.filter((_, i) => i !== idx));
+  const updateItem = (idx: number, key: keyof OrderItem, val: string | number) => {
+    setFormItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [key]: val } : it)));
+  };
 
   const handleSubmit = () => {
-    if (!form.customer || !form.deliveryDate) return;
-    const total = form.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-    const newOrder: Order = {
+    if (!formCustomer || !formDelivery || formItems.some((i) => !i.quantity)) return;
+    const total = formItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+    addOrder({
       id: `OD${Date.now()}`,
-      orderNo: `DD-2026-${String(orders.length + 1).padStart(3, '0')}`,
-      customer: form.customer,
-      items: form.items,
-      status: form.status,
-      deliveryDate: form.deliveryDate,
+      orderNo: `DD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(3, '0')}`,
+      customer: formCustomer,
+      items: formItems,
+      status: formStatus,
+      deliveryDate: formDelivery,
       totalAmount: total,
       createDate: new Date().toISOString().slice(0, 10),
-    };
-    addOrder(newOrder);
-    setForm({ customer: '', deliveryDate: '', items: [emptyItem()], status: '待排产' });
+    });
+    setFormCustomer('');
+    setFormDelivery('');
+    setFormStatus('待排产');
+    setFormItems([{ ...emptyItem }]);
     setShowForm(false);
   };
 
-  const updateItem = (idx: number, field: keyof OrderItem, val: string | number) => {
-    const items = [...form.items];
-    items[idx] = { ...items[idx], [field]: val };
-    setForm(f => ({ ...f, items }));
+  const handleNextStatus = (id: string, current: Order['status']) => {
+    const nextIdx = statusFlow.indexOf(current) + 1;
+    if (nextIdx < statusFlow.length) {
+      updateOrder(id, { status: statusFlow[nextIdx] });
+    }
+  };
+
+  const daysRemaining = (dateStr: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr);
+    return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const orderFromCombo = (combo: typeof combos[0]) => {
+    const paperItems = combo.items.filter((i: any) => i.spec);
+    const total = combo.items.reduce((s: number, i: any) => s + (i.qty || i.quantity) * (i.price || i.unitPrice), 0);
+    const order: Order = {
+      id: `OD${Date.now()}`,
+      orderNo: `DD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(3, '0')}`,
+      customer: `${combo.name} - 散客`,
+      items: paperItems.map((i: any) => ({
+        specification: i.spec,
+        grade: i.grade,
+        quantity: i.qty,
+        unitPrice: i.price,
+      })),
+      status: '待排产',
+      deliveryDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      totalAmount: total,
+      createDate: new Date().toISOString().slice(0, 10),
+    };
+    addOrder(order);
+    setShowForm(true);
+    setFormCustomer(order.customer);
+    setFormDelivery(order.deliveryDate);
+    setFormItems(order.items);
   };
 
   return (
-    <div className="p-6 space-y-6 ink-wash-bg min-h-screen">
-      <div className="flex items-center gap-3 mb-2 animate-fade-in-up">
-        <ShoppingCart className="w-5 h-5 text-xuan-ochre" />
-        <h1 className="text-2xl font-serif font-bold text-xuan-ink">订单生产</h1>
-      </div>
+    <div className="animate-fade-in-up space-y-6">
+      <h2 className="xuan-section-title font-serif">订单生产</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {summaryCards.map((s, i) => (
-          <div key={s.label} className={`xuan-card-hover p-5 animate-fade-in-up border ${s.border}`} style={{ animationDelay: `${i * 80}ms` }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-xuan-inkLight font-sans">{s.label}</p>
-                <p className={`text-3xl font-serif font-bold mt-1 ${s.color}`}>
-                  {s.value}{'unit' in s && <span className="text-sm font-sans font-normal text-xuan-inkLight ml-1">{s.unit}</span>}
-                </p>
-              </div>
-              <div className={`w-12 h-12 rounded-xl ${s.bg} flex items-center justify-center`}>
-                <s.icon className={`w-6 h-6 ${s.color}`} />
-              </div>
-            </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="xuan-card p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-xuan-ochre/15 flex items-center justify-center">
+            <ShoppingCart className="w-6 h-6 text-xuan-ochre" />
           </div>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between animate-fade-in-up" style={{ animationDelay: '320ms' }}>
-        <h2 className="xuan-section-title">订单列表</h2>
-        <button onClick={() => setShowForm(v => !v)} className="xuan-btn-primary flex items-center gap-1.5 text-sm">
-          <Plus className="w-4 h-4" />新增订单
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="xuan-card p-5 animate-fade-in-up space-y-4">
-          <h3 className="font-serif font-semibold text-xuan-ink">新增订单</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input className="xuan-input" placeholder="客户名称" value={form.customer} onChange={e => setForm(f => ({ ...f, customer: e.target.value }))} />
-            <input className="xuan-input" type="date" value={form.deliveryDate} onChange={e => setForm(f => ({ ...f, deliveryDate: e.target.value }))} />
-            <select className="xuan-select" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as Order['status'] }))}>
-              <option value="待排产">待排产</option>
-              <option value="生产中">生产中</option>
-            </select>
-          </div>
-          {form.items.map((item, idx) => (
-            <div key={idx} className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
-              <select className="xuan-select" value={item.specification} onChange={e => updateItem(idx, 'specification', e.target.value)}>
-                {['四尺', '六尺', '八尺', '丈二'].map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select className="xuan-select" value={item.grade} onChange={e => updateItem(idx, 'grade', e.target.value)}>
-                {['特皮', '净皮', '棉料'].map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-              <input className="xuan-input" type="number" placeholder="数量" value={item.quantity} onChange={e => updateItem(idx, 'quantity', Number(e.target.value))} />
-              <input className="xuan-input" type="number" placeholder="单价" value={item.unitPrice} onChange={e => updateItem(idx, 'unitPrice', Number(e.target.value))} />
-              <div className="flex gap-2">
-                <span className="text-sm text-xuan-inkLight self-center">小计: ¥{item.quantity * item.unitPrice}</span>
-                {form.items.length > 1 && (
-                  <button onClick={() => setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))} className="text-xuan-cinnabar text-sm">删除</button>
-                )}
-              </div>
-            </div>
-          ))}
-          <div className="flex gap-3">
-            <button onClick={() => setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))} className="xuan-btn-secondary text-sm">添加明细</button>
-            <button onClick={handleSubmit} className="xuan-btn-primary text-sm">提交订单</button>
+          <div>
+            <p className="text-sm text-xuan-inkLight">总订单额</p>
+            <p className="text-xl font-bold text-xuan-ink">¥{totalAmount.toLocaleString()}</p>
           </div>
         </div>
-      )}
+        <div className="xuan-card p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-xuan-gold/15 flex items-center justify-center">
+            <Clock className="w-6 h-6 text-xuan-gold" />
+          </div>
+          <div>
+            <p className="text-sm text-xuan-inkLight">待排产</p>
+            <p className="text-2xl font-bold text-xuan-ink">{pending}</p>
+          </div>
+        </div>
+        <div className="xuan-card p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-xuan-moss/15 flex items-center justify-center">
+            <Package className="w-6 h-6 text-xuan-moss" />
+          </div>
+          <div>
+            <p className="text-sm text-xuan-inkLight">生产中</p>
+            <p className="text-2xl font-bold text-xuan-ink">{producing}</p>
+          </div>
+        </div>
+        <div className="xuan-card p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-xuan-indigo/15 flex items-center justify-center">
+            <Truck className="w-6 h-6 text-xuan-indigo" />
+          </div>
+          <div>
+            <p className="text-sm text-xuan-inkLight">已发货</p>
+            <p className="text-2xl font-bold text-xuan-ink">{shipped}</p>
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-4">
-        {orders.map((order, i) => {
-          const cfg = statusConfig[order.status];
-          const days = getCountdown(order.deliveryDate);
-          const overdue = days < 0;
-          return (
-            <div key={order.id} className="xuan-card-hover p-5 animate-fade-in-up" style={{ animationDelay: `${(i + 4) * 60}ms` }}>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-serif font-bold text-xuan-ink">{order.orderNo}</span>
-                    <span className={`xuan-badge ${cfg.bg} ${cfg.color}`}>{order.status}</span>
-                    <span className={`text-xs ${overdue ? 'text-xuan-cinnabar font-semibold' : 'text-xuan-inkLight'}`}>
-                      <Clock className="w-3 h-3 inline mr-1" />
-                      {overdue ? `逾期${Math.abs(days)}天` : `${days}天后交货`}
-                    </span>
+        <div className="flex items-center justify-between">
+          <h3 className="font-serif text-lg font-semibold text-xuan-ink">订单列表</h3>
+          <button className="xuan-btn-primary flex items-center gap-2 text-sm" onClick={() => setShowForm(!showForm)}>
+            <Plus className="w-4 h-4" />
+            新增订单
+          </button>
+        </div>
+
+        {showForm && (
+          <div className="xuan-card p-5 animate-fade-in-up">
+            <h3 className="font-serif text-lg font-semibold text-xuan-ink mb-4">新增订单</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm text-xuan-inkLight mb-1">客户名称</label>
+                <input className="xuan-input w-full" value={formCustomer} onChange={(e) => setFormCustomer(e.target.value)} placeholder="如：北京荣宝斋" />
+              </div>
+              <div>
+                <label className="block text-sm text-xuan-inkLight mb-1">交货日期</label>
+                <input className="xuan-input w-full" type="date" value={formDelivery} onChange={(e) => setFormDelivery(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm text-xuan-inkLight mb-1">状态</label>
+                <select
+                  className="xuan-select w-full"
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value as Order['status'])}
+                >
+                  <option value="待排产">待排产</option>
+                  <option value="生产中">生产中</option>
+                  <option value="已完成">已完成</option>
+                  <option value="已发货">已发货</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-xuan-inkLight">订单项</label>
+                <button className="text-xs text-xuan-ochre hover:underline" onClick={addItem}>+ 添加项</button>
+              </div>
+              {formItems.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-3">
+                    <select
+                      className="xuan-select w-full text-sm"
+                      value={item.specification}
+                      onChange={(e) => updateItem(idx, 'specification', e.target.value)}
+                    >
+                      <option value="四尺">四尺</option>
+                      <option value="六尺">六尺</option>
+                      <option value="八尺">八尺</option>
+                      <option value="丈二">丈二</option>
+                    </select>
                   </div>
-                  <p className="text-sm text-xuan-inkLight mt-1">{order.customer} · 创建于 {order.createDate} · 交期 {order.deliveryDate}</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {order.items.map((it, j) => (
-                      <span key={j} className="text-xs bg-xuan-paperDark/40 px-2 py-1 rounded text-xuan-ink">
-                        {it.specification}{it.grade} × {it.quantity}张 @ ¥{it.unitPrice}
-                      </span>
-                    ))}
+                  <div className="col-span-2">
+                    <select
+                      className="xuan-select w-full text-sm"
+                      value={item.grade}
+                      onChange={(e) => updateItem(idx, 'grade', e.target.value)}
+                    >
+                      <option value="特皮">特皮</option>
+                      <option value="净皮">净皮</option>
+                      <option value="棉料">棉料</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <input className="xuan-input w-full text-sm" type="number" placeholder="数量" value={item.quantity || ''} onChange={(e) => updateItem(idx, 'quantity', +e.target.value)} />
+                  </div>
+                  <div className="col-span-2">
+                    <input className="xuan-input w-full text-sm" type="number" placeholder="单价" value={item.unitPrice || ''} onChange={(e) => updateItem(idx, 'unitPrice', +e.target.value)} />
+                  </div>
+                  <div className="col-span-2 text-sm text-xuan-ink text-right font-medium">
+                    ¥{(item.quantity * item.unitPrice).toLocaleString()}
+                  </div>
+                  <div className="col-span-1">
+                    {formItems.length > 1 && (
+                      <button
+                        className="w-full py-2 text-xs text-xuan-cinnabar hover:bg-xuan-cinnabar/10 rounded-lg transition"
+                        onClick={() => removeItem(idx)}
+                      >
+                        删除
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <p className="font-serif text-xl font-bold text-xuan-ochre">¥{order.totalAmount.toLocaleString()}</p>
-                  {order.status === '待排产' && (
-                    <button onClick={() => updateOrder(order.id, { status: '生产中' })} className="xuan-btn-primary text-xs">排产</button>
-                  )}
-                  {order.status === '生产中' && (
-                    <button onClick={() => updateOrder(order.id, { status: '已完成' })} className="xuan-btn-primary text-xs">完成</button>
-                  )}
-                  {order.status === '已完成' && (
-                    <button onClick={() => updateOrder(order.id, { status: '已发货' })} className="xuan-btn-primary text-xs">发货</button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-xuan-paperDark/40">
+              <span className="text-sm text-xuan-inkLight">
+                共 {formItems.reduce((s, i) => s + i.quantity, 0)} 张
+              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-lg font-bold text-xuan-ochre">¥{itemsTotal.toLocaleString()}</span>
+                <button className="px-4 py-2 rounded-lg border border-xuan-paperDark text-xuan-inkLight hover:bg-xuan-paperDark/30 transition" onClick={() => setShowForm(false)}>取消</button>
+                <button className="xuan-btn-primary" onClick={handleSubmit}>确认提交</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {orders.map((order) => {
+            const days = daysRemaining(order.deliveryDate);
+            const isOverdue = days < 0 && order.status !== '已发货';
+            return (
+              <div key={order.id} className="xuan-card-hover p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="font-serif font-semibold text-xuan-ink text-lg">{order.orderNo}</span>
+                      <span className={`xuan-badge border ${statusBadge[order.status]}`}>{order.status}</span>
+                    </div>
+                    <p className="text-sm text-xuan-inkLight">{order.customer} · {order.createDate}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-bold text-xuan-ochre">¥{order.totalAmount.toLocaleString()}</p>
+                    <p className={`text-xs ${isOverdue ? 'text-xuan-cinnabar' : 'text-xuan-inkLight'}`}>
+                      {order.status === '已发货' ? '已发货' : `距交货 ${days} 天`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {order.items.map((item, idx) => (
+                    <span key={idx} className="px-2 py-1 rounded-md bg-xuan-paperDark/30 text-xs text-xuan-inkLight">
+                      {item.specification} {item.grade} × {item.quantity}张
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-xuan-paperDark/30">
+                  <span className="text-xs text-xuan-inkLight">
+                    交货日期：{order.deliveryDate}
+                  </span>
+                  {order.status !== '已发货' && (
+                    <button
+                      className="text-xs px-3 py-1.5 rounded-md bg-xuan-ochre/10 text-xuan-ochre hover:bg-xuan-ochre/20 transition font-medium"
+                      onClick={() => handleNextStatus(order.id, order.status)}
+                    >
+                      {statusFlow[statusFlow.indexOf(order.status) + 1] || '已完成'} →
+                    </button>
                   )}
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '600ms' }}>
-        <div className="flex items-center gap-2 mb-4">
-          <Gift className="w-5 h-5 text-xuan-cinnabar" />
-          <h2 className="xuan-section-title">文房四宝套装</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {combos.map((c, i) => (
-            <div key={c.name} className="xuan-card-hover p-5 flex flex-col animate-fade-in-up" style={{ animationDelay: `${(i + 8) * 80}ms` }}>
-              <h3 className="font-serif text-lg font-bold text-xuan-ink">{c.name}</h3>
-              <p className="text-xs text-xuan-inkLight mt-1">{c.desc}</p>
-              <ul className="mt-3 space-y-1.5 flex-1">
-                {c.items.map(it => (
-                  <li key={it} className="text-sm text-xuan-ink flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-xuan-ochre/60" />{it}
-                  </li>
+      <div className="space-y-4">
+        <h3 className="font-serif text-lg font-semibold text-xuan-ink flex items-center gap-2">
+          <Gift className="w-5 h-5 text-xuan-gold" />
+          文房四宝套装
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {combos.map((combo) => (
+            <div key={combo.id} className="xuan-card-hover p-5 flex flex-col">
+              <div className="flex items-start justify-between mb-3">
+                <h4 className="font-serif font-semibold text-xuan-ink text-lg">{combo.name}</h4>
+                <span className={`xuan-badge text-xs ${combo.badgeColor}`}>{combo.badge}</span>
+              </div>
+              <p className="text-sm text-xuan-inkLight mb-4">{combo.desc}</p>
+              <div className="flex-1 space-y-1.5 mb-4">
+                {combo.items.map((item: any, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <span className="text-xuan-inkLight">
+                      {item.spec || item.name}
+                      {item.grade && ` · ${item.grade}`}
+                    </span>
+                    <span className="text-xuan-ink">×{(item.qty || item.quantity)}</span>
+                  </div>
                 ))}
-              </ul>
-              <div className="mt-4 pt-3 border-t border-xuan-paperDark/40 flex items-center justify-between">
-                <span className="font-serif text-xl font-bold text-xuan-cinnabar">¥{c.price}</span>
-                <button className="xuan-btn-primary text-xs">立即下单</button>
+              </div>
+              <div className="pt-3 border-t border-xuan-paperDark/30 flex items-center justify-between">
+                <p className="text-xl font-bold text-xuan-ochre">¥{combo.price.toLocaleString()}</p>
+                <button
+                  className="xuan-btn-secondary text-xs px-3 py-1.5"
+                  onClick={() => orderFromCombo(combo)}
+                >
+                  立即下单
+                </button>
               </div>
             </div>
           ))}

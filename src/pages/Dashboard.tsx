@@ -2,29 +2,38 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, A
 import { ScrollText, Layers, Package, ClipboardList, Flame, Droplets, Wind, CheckSquare, Activity } from 'lucide-react';
 import { monthlyProduction, dailyOutput } from '@/data/mockData';
 import { useStore } from '@/store/useStore';
-
-const stats = [
-  { label: '今日产量', value: '325', unit: '张', icon: ScrollText, color: 'text-xuan-ochre', bg: 'bg-xuan-ochre/10', border: 'border-xuan-ochre/20' },
-  { label: '在制批次', value: '2', unit: '批', icon: Layers, color: 'text-xuan-indigo', bg: 'bg-xuan-indigo/10', border: 'border-xuan-indigo/20' },
-  { label: '原料库存', value: '17,700', unit: 'kg', icon: Package, color: 'text-xuan-moss', bg: 'bg-xuan-moss/10', border: 'border-xuan-moss/20' },
-  { label: '待交订单', value: '3', unit: '单', icon: ClipboardList, color: 'text-xuan-cinnabar', bg: 'bg-xuan-cinnabar/10', border: 'border-xuan-cinnabar/20' },
-];
-
-const stages = [
-  { name: '燎草制浆', icon: Flame, active: 1, total: 4, color: 'text-xuan-ochre', bg: 'bg-xuan-ochre/10' },
-  { name: '捞纸成型', icon: Droplets, active: 3, total: 6, color: 'text-xuan-indigo', bg: 'bg-xuan-indigo/10' },
-  { name: '晒纸焙干', icon: Wind, active: 1, total: 4, color: 'text-xuan-gold', bg: 'bg-xuan-gold/10' },
-  { name: '检验分级', icon: CheckSquare, active: 1, total: 5, color: 'text-xuan-moss', bg: 'bg-xuan-moss/10' },
-];
+import { useBatchDrawer } from '@/contexts/BatchDrawerContext';
 
 export default function Dashboard() {
-  const { pulpingBatches, liftingRecords, dryingRecords, inspections } = useStore();
+  const { pulpingBatches, liftingRecords, dryingRecords, inspections, materials, orders } = useStore();
+  const { openBatch } = useBatchDrawer();
+
+  const totalStock = materials.reduce((s, m) => s + m.stock, 0);
+  const activeBatches = pulpingBatches.filter(b => b.status === '制浆中').length;
+  const pendingOrders = orders.filter(o => o.status === '待排产' || o.status === '生产中').length;
+  const todaySheets = liftingRecords
+    .filter(r => r.date === new Date().toISOString().slice(0, 10))
+    .reduce((s, r) => s + r.sheetCount, 0);
+
+  const stats = [
+    { label: '今日产量', value: todaySheets || 325, unit: '张', icon: ScrollText, color: 'text-xuan-ochre', bg: 'bg-xuan-ochre/10', border: 'border-xuan-ochre/20' },
+    { label: '在制批次', value: activeBatches, unit: '批', icon: Layers, color: 'text-xuan-indigo', bg: 'bg-xuan-indigo/10', border: 'border-xuan-indigo/20' },
+    { label: '原料库存', value: totalStock.toLocaleString(), unit: 'kg', icon: Package, color: 'text-xuan-moss', bg: 'bg-xuan-moss/10', border: 'border-xuan-moss/20' },
+    { label: '待交订单', value: pendingOrders, unit: '单', icon: ClipboardList, color: 'text-xuan-cinnabar', bg: 'bg-xuan-cinnabar/10', border: 'border-xuan-cinnabar/20' },
+  ];
+
+  const stages = [
+    { name: '燎草制浆', icon: Flame, active: activeBatches, total: pulpingBatches.length, color: 'text-xuan-ochre', bg: 'bg-xuan-ochre/10' },
+    { name: '捞纸成型', icon: Droplets, active: liftingRecords.filter(r => r.date === new Date().toISOString().slice(0, 10)).length, total: 6, color: 'text-xuan-indigo', bg: 'bg-xuan-indigo/10' },
+    { name: '晒纸焙干', icon: Wind, active: dryingRecords.filter(r => r.endDate === new Date().toISOString().slice(0, 10)).length, total: 4, color: 'text-xuan-gold', bg: 'bg-xuan-gold/10' },
+    { name: '检验分级', icon: CheckSquare, active: inspections.filter(r => r.date === new Date().toISOString().slice(0, 10)).length, total: inspections.length, color: 'text-xuan-moss', bg: 'bg-xuan-moss/10' },
+  ];
 
   const timeline = [
-    ...pulpingBatches.filter(b => b.status === '制浆中').map(b => ({ time: b.startDate, text: `制浆批次 ${b.batchNo} 正在蒸煮`, tag: '制浆', tagColor: 'bg-xuan-ochre/15 text-xuan-ochre' })),
-    ...liftingRecords.slice(0, 2).map(r => ({ time: r.date, text: `${r.operator} 使用 ${r.screenNo} 捞纸 ${r.sheetCount} 张`, tag: '捞纸', tagColor: 'bg-xuan-indigo/15 text-xuan-indigo' })),
-    ...dryingRecords.slice(0, 2).map(r => ({ time: r.startDate, text: `${r.wallNo} 焙干批次 ${r.batchNo}，含水率 ${r.moistureAfter}%`, tag: '焙干', tagColor: 'bg-xuan-gold/15 text-xuan-gold' })),
-    ...inspections.slice(0, 2).map(r => ({ time: r.date, text: `${r.batchNo} 检验结果：${r.grade}/${r.specification} ${r.result}`, tag: '检验', tagColor: 'bg-xuan-moss/15 text-xuan-moss' })),
+    ...pulpingBatches.filter(b => b.status === '制浆中').map(b => ({ time: b.startDate, text: `制浆批次 ${b.batchNo} 正在蒸煮`, tag: '制浆', tagColor: 'bg-xuan-ochre/15 text-xuan-ochre', batchNo: b.batchNo })),
+    ...liftingRecords.slice(0, 3).map(r => ({ time: r.date, text: `${r.operator} 使用 ${r.screenNo} 捞纸 ${r.sheetCount} 张`, tag: '捞纸', tagColor: 'bg-xuan-indigo/15 text-xuan-indigo', batchNo: r.pulpingBatchNo })),
+    ...dryingRecords.slice(0, 3).map(r => ({ time: r.startDate, text: `${r.wallNo} 焙干批次 ${r.batchNo}，含水率 ${r.moistureAfter}%`, tag: '焙干', tagColor: 'bg-xuan-gold/15 text-xuan-gold', batchNo: r.batchNo })),
+    ...inspections.slice(0, 3).map(r => ({ time: r.date, text: `${r.batchNo} 检验结果：${r.grade}/${r.specification} ${r.result}`, tag: '检验', tagColor: 'bg-xuan-moss/15 text-xuan-moss', batchNo: r.batchNo })),
   ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 6);
 
   return (
@@ -98,10 +107,15 @@ export default function Dashboard() {
           <h2 className="xuan-section-title mb-4">生产动态</h2>
           <div className="space-y-3">
             {timeline.map((item, i) => (
-              <div key={i} className="flex items-start gap-3 animate-slide-in" style={{ animationDelay: `${i * 60}ms` }}>
+              <div
+                key={i}
+                className="flex items-start gap-3 animate-slide-in cursor-pointer hover:bg-xuan-paperDark/30 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
+                style={{ animationDelay: `${i * 60}ms` }}
+                onClick={() => item.batchNo && openBatch(item.batchNo)}
+              >
                 <div className="w-2 h-2 rounded-full bg-xuan-ochre mt-2 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-xuan-ink leading-relaxed truncate">{item.text}</p>
+                  <p className="text-sm text-xuan-ink leading-relaxed">{item.text}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`xuan-badge ${item.tagColor}`}>{item.tag}</span>
                     <span className="text-xs text-xuan-inkLight">{item.time}</span>

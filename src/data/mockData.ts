@@ -41,6 +41,8 @@ export interface ScreenBed {
 
 export interface LiftingRecord {
   id: string;
+  pulpingBatchId: string;
+  pulpingBatchNo: string;
   screenNo: string;
   operator: string;
   sheetCount: number;
@@ -157,12 +159,12 @@ export const screenBeds: ScreenBed[] = [
 ];
 
 export const liftingRecords: LiftingRecord[] = [
-  { id: 'LR001', screenNo: '帘床-01', operator: '陈师傅', sheetCount: 120, thickness: 0.08, date: '2026-06-14' },
-  { id: 'LR002', screenNo: '帘床-03', operator: '刘师傅', sheetCount: 95, thickness: 0.10, date: '2026-06-14' },
-  { id: 'LR003', screenNo: '帘床-06', operator: '赵师傅', sheetCount: 110, thickness: 0.09, date: '2026-06-14' },
-  { id: 'LR004', screenNo: '帘床-01', operator: '陈师傅', sheetCount: 130, thickness: 0.08, date: '2026-06-13' },
-  { id: 'LR005', screenNo: '帘床-02', operator: '陈师傅', sheetCount: 105, thickness: 0.09, date: '2026-06-12' },
-  { id: 'LR006', screenNo: '帘床-03', operator: '刘师傅', sheetCount: 88, thickness: 0.10, date: '2026-06-12' },
+  { id: 'LR001', pulpingBatchId: 'PB003', pulpingBatchNo: 'ZJ-2026-003', screenNo: '帘床-01', operator: '陈师傅', sheetCount: 120, thickness: 0.08, date: '2026-06-14' },
+  { id: 'LR002', pulpingBatchId: 'PB003', pulpingBatchNo: 'ZJ-2026-003', screenNo: '帘床-03', operator: '刘师傅', sheetCount: 95, thickness: 0.10, date: '2026-06-14' },
+  { id: 'LR003', pulpingBatchId: 'PB004', pulpingBatchNo: 'ZJ-2026-004', screenNo: '帘床-06', operator: '赵师傅', sheetCount: 110, thickness: 0.09, date: '2026-06-14' },
+  { id: 'LR004', pulpingBatchId: 'PB001', pulpingBatchNo: 'ZJ-2026-001', screenNo: '帘床-01', operator: '陈师傅', sheetCount: 130, thickness: 0.08, date: '2026-03-02' },
+  { id: 'LR005', pulpingBatchId: 'PB001', pulpingBatchNo: 'ZJ-2026-001', screenNo: '帘床-02', operator: '陈师傅', sheetCount: 105, thickness: 0.09, date: '2026-03-02' },
+  { id: 'LR006', pulpingBatchId: 'PB002', pulpingBatchNo: 'ZJ-2026-002', screenNo: '帘床-03', operator: '刘师傅', sheetCount: 88, thickness: 0.10, date: '2026-03-06' },
 ];
 
 export const dryingRecords: DryingRecord[] = [
