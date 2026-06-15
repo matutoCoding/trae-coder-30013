@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #F5F0E8;
+  color: #2C2C2C;
+}
+
+@layer components {
+  .xuan-card {
+    @apply bg-xuan-paperLight border border-xuan-paperDark/50 rounded-lg shadow-sm;
+  }
+
+  .xuan-card-hover {
+    @apply bg-xuan-paperLight border border-xuan-paperDark/50 rounded-lg shadow-sm 
+           hover:shadow-md hover:border-xuan-ochre/30 transition-all duration-300;
+  }
+
+  .xuan-btn-primary {
+    @apply bg-xuan-ochre text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-xuan-ochreLight active:bg-xuan-ochreDark transition-colors duration-200;
+  }
+
+  .xuan-btn-secondary {
+    @apply bg-xuan-indigo text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-xuan-indigoLight transition-colors duration-200;
+  }
+
+  .xuan-btn-outline {
+    @apply border border-xuan-ochre text-xuan-ochre px-4 py-2 rounded-lg font-medium
+           hover:bg-xuan-ochre hover:text-white transition-colors duration-200;
+  }
+
+  .xuan-input {
+    @apply w-full px-3 py-2 rounded-lg border border-xuan-paperDark bg-white/80 
+           focus:border-xuan-ochre focus:ring-1 focus:ring-xuan-ochre/30 outline-none
+           transition-all duration-200 text-xuan-ink;
+  }
+
+  .xuan-select {
+    @apply w-full px-3 py-2 rounded-lg border border-xuan-paperDark bg-white/80 
+           focus:border-xuan-ochre focus:ring-1 focus:ring-xuan-ochre/30 outline-none
+           transition-all duration-200 text-xuan-ink appearance-none cursor-pointer;
+  }
+
+  .xuan-table {
+    @apply w-full border-collapse;
+  }
+
+  .xuan-table th {
+    @apply bg-xuan-paperDark/40 px-4 py-3 text-left text-sm font-semibold text-xuan-ink 
+           border-b border-xuan-paperDark/60 font-serif;
+  }
+
+  .xuan-table td {
+    @apply px-4 py-3 text-sm text-xuan-inkLight border-b border-xuan-paperDark/30;
+  }
+
+  .xuan-table tr:hover td {
+    @apply bg-xuan-ochre/5;
+  }
+
+  .xuan-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .xuan-section-title {
+    @apply text-lg font-serif font-semibold text-xuan-ink relative pl-4;
+  }
+
+  .xuan-section-title::before {
+    content: '';
+    @apply absolute left-0 top-1 bottom-1 w-1 bg-xuan-ochre rounded-full;
+  }
+}
+
+.ink-wash-bg {
+  background-image: 
+    radial-gradient(ellipse at 10% 20%, rgba(139,69,19,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 80%, rgba(74,111,165,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(107,142,107,0.02) 0%, transparent 70%);
+}
+
+.paper-texture {
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C9A84C40;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C9A84C80;
+}
