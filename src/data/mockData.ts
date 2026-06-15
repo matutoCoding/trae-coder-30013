@@ -84,6 +84,18 @@ export interface OrderItem {
   grade: string;
   quantity: number;
   unitPrice: number;
+  batchNo?: string;
+}
+
+export interface FinishedStock {
+  id: string;
+  batchNo: string;
+  specification: '四尺' | '六尺' | '八尺' | '丈二';
+  grade: '特皮' | '净皮' | '棉料';
+  quantity: number;
+  unit: string;
+  warehouseDate: string;
+  remark?: string;
 }
 
 export interface Order {
@@ -95,6 +107,7 @@ export interface Order {
   deliveryDate: string;
   totalAmount: number;
   createDate: string;
+  isBundle?: boolean;
 }
 
 export interface SaleRecord {
@@ -253,4 +266,19 @@ export const temperatureData = [
   { time: '18:00', temp: 83, target: 85 },
   { time: '20:00', temp: 80, target: 85 },
   { time: '22:00', temp: 78, target: 85 },
+];
+
+export const finishedStocks: FinishedStock[] = [
+  { id: 'FS001', batchNo: 'ZJ-2026-001', specification: '四尺', grade: '特皮', quantity: 800, unit: '张', warehouseDate: '2026-03-05', remark: '检验合格入库' },
+  { id: 'FS002', batchNo: 'ZJ-2026-001', specification: '六尺', grade: '净皮', quantity: 500, unit: '张', warehouseDate: '2026-03-05', remark: '检验合格入库' },
+  { id: 'FS003', batchNo: 'ZJ-2026-002', specification: '四尺', grade: '净皮', quantity: 1200, unit: '张', warehouseDate: '2026-03-08', remark: '检验合格入库' },
+  { id: 'FS004', batchNo: 'ZJ-2026-002', specification: '八尺', grade: '棉料', quantity: 400, unit: '张', warehouseDate: '2026-03-08', remark: '检验合格入库' },
+  { id: 'FS005', batchNo: 'ZJ-2026-001', specification: '四尺', grade: '棉料', quantity: 600, unit: '张', warehouseDate: '2026-03-06', remark: '补检合格入库' },
+];
+
+export const BUNDLE_ITEMS = [
+  { name: '四尺净皮宣纸', specification: '四尺', grade: '净皮', quantity: 100, unitPrice: 22, isPaper: true },
+  { name: '狼毫毛笔', specification: '-', grade: '-', quantity: 2, unitPrice: 68, isPaper: false },
+  { name: '徽墨（二两）', specification: '-', grade: '-', quantity: 2, unitPrice: 45, isPaper: false },
+  { name: '端砚', specification: '-', grade: '-', quantity: 1, unitPrice: 280, isPaper: false },
 ];

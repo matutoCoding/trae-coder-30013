@@ -10,6 +10,7 @@ import {
   SaleRecord,
   CraftArchive,
   TraceNode,
+  FinishedStock,
   rawMaterials,
   pulpingBatches,
   screenBeds,
@@ -19,6 +20,7 @@ import {
   orders,
   saleRecords,
   craftArchives,
+  finishedStocks,
 } from '@/data/mockData';
 
 const STORAGE_KEY = 'xuanzhi-paper-factory-data';
@@ -31,6 +33,7 @@ interface PersistState {
   inspections: InspectionRecord[];
   orders: Order[];
   sales: SaleRecord[];
+  finishedStocks: FinishedStock[];
 }
 
 function loadPersisted(): PersistState | null {
@@ -63,6 +66,7 @@ interface AppState {
   orders: Order[];
   sales: SaleRecord[];
   archives: CraftArchive[];
+  finishedStocks: FinishedStock[];
 
   addMaterial: (m: RawMaterial) => void;
   updateMaterial: (id: string, m: Partial<RawMaterial>) => void;
@@ -87,9 +91,15 @@ interface AppState {
   addOrder: (o: Order) => void;
   updateOrder: (id: string, o: Partial<Order>) => void;
   deleteOrder: (id: string) => void;
+  shipOrder: (id: string) => { ok: boolean; msg?: string };
 
   addSale: (s: SaleRecord) => void;
   updateSale: (id: string, s: Partial<SaleRecord>) => void;
+
+  addFinishedStock: (s: FinishedStock) => void;
+  updateFinishedStock: (id: string, s: Partial<FinishedStock>) => void;
+  deleteFinishedStock: (id: string) => void;
+  getAvailableStock: (specification: string, grade: string) => { total: number; batches: FinishedStock[] };
 
   resetAllData: () => void;
   getTraceabilityByBatch: (batchNo: string) => TraceNode[];
@@ -104,6 +114,7 @@ function persistSlice(state: AppState): PersistState {
     inspections: state.inspections,
     orders: state.orders,
     sales: state.sales,
+    finishedStocks: state.finishedStocks,
   };
 }
 
@@ -117,6 +128,7 @@ export const useStore = create<AppState>((set, get) => ({
   orders: persisted?.orders ?? orders,
   sales: persisted?.sales ?? saleRecords,
   archives: craftArchives,
+  finishedStocks: persisted?.finishedStocks ?? finishedStocks,
 
   addMaterial: (m) =>
     set((s) => {
@@ -197,8 +209,29 @@ export const useStore = create<AppState>((set, get) => ({
   addInspection: (r) =>
     set((s) => {
       const inspections = [...s.inspections, r];
-      savePersisted(persistSlice({ ...s, inspections }));
-      return { inspections };
+      let finishedStocks = s.finishedStocks;
+      if (r.result === '合格') {
+        const exists = finishedStocks.find(
+          (fs) => fs.batchNo === r.batchNo && fs.specification === r.specification && fs.grade === r.grade,
+        );
+        if (!exists) {
+          finishedStocks = [
+            ...finishedStocks,
+            {
+              id: `FS${Date.now()}`,
+              batchNo: r.batchNo,
+              specification: r.specification,
+              grade: r.grade,
+              quantity: 0,
+              unit: '张',
+              warehouseDate: r.date,
+              remark: '检验合格自动入库',
+            },
+          ];
+        }
+      }
+      savePersisted(persistSlice({ ...s, inspections, finishedStocks }));
+      return { inspections, finishedStocks };
     }),
   updateInspection: (id, r) =>
     set((s) => {
@@ -231,6 +264,61 @@ export const useStore = create<AppState>((set, get) => ({
       savePersisted(persistSlice({ ...s, orders }));
       return { orders };
     }),
+  shipOrder: (id) => {
+    const state = get();
+    const order = state.orders.find((o) => o.id === id);
+    if (!order) return { ok: false, msg: '订单不存在' };
+    if (order.status === '已发货') return { ok: false, msg: '订单已发货' };
+
+    const paperItems = order.items.filter((it) => it.batchNo);
+    for (const item of paperItems) {
+      if (!item.batchNo) continue;
+      const stock = state.getAvailableStock(item.specification, item.grade);
+      const batchStock = stock.batches.find((b) => b.batchNo === item.batchNo);
+      if (!batchStock || batchStock.quantity < item.quantity) {
+        return {
+          ok: false,
+          msg: `${item.specification} ${item.grade} 批次 ${item.batchNo} 库存不足（剩 ${batchStock?.quantity ?? 0}，需 ${item.quantity}）`,
+        };
+      }
+    }
+
+    set((s) => {
+      let finishedStocks = s.finishedStocks.map((fs) => ({ ...fs }));
+      for (const item of paperItems) {
+        if (!item.batchNo) continue;
+        const idx = finishedStocks.findIndex(
+          (fs) => fs.batchNo === item.batchNo && fs.specification === item.specification && fs.grade === item.grade,
+        );
+        if (idx >= 0) {
+          finishedStocks[idx].quantity = Math.max(0, finishedStocks[idx].quantity - item.quantity);
+        }
+      }
+
+      let sales = [...s.sales];
+      const today = new Date().toISOString().slice(0, 10);
+      for (const item of paperItems) {
+        if (!item.batchNo) continue;
+        sales.push({
+          id: `SL${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          traceCode: `TR-${today.replace(/-/g, '')}-${sales.length + 1}`,
+          batchNo: item.batchNo,
+          customer: order.customer,
+          product: `${item.specification}${item.grade}`,
+          quantity: item.quantity,
+          amount: item.quantity * item.unitPrice,
+          saleDate: today,
+          paymentStatus: '待收款',
+        });
+      }
+
+      const orders = s.orders.map((o) => (o.id === id ? { ...o, status: '已发货' as const } : o));
+      savePersisted(persistSlice({ ...s, orders, sales, finishedStocks }));
+      return { orders, sales, finishedStocks };
+    });
+
+    return { ok: true };
+  },
 
   addSale: (s2) =>
     set((s) => {
@@ -245,6 +333,33 @@ export const useStore = create<AppState>((set, get) => ({
       return { sales };
     }),
 
+  addFinishedStock: (f) =>
+    set((s) => {
+      const finishedStocks = [...s.finishedStocks, f];
+      savePersisted(persistSlice({ ...s, finishedStocks }));
+      return { finishedStocks };
+    }),
+  updateFinishedStock: (id, f) =>
+    set((s) => {
+      const finishedStocks = s.finishedStocks.map((item) => (item.id === id ? { ...item, ...f } : item));
+      savePersisted(persistSlice({ ...s, finishedStocks }));
+      return { finishedStocks };
+    }),
+  deleteFinishedStock: (id) =>
+    set((s) => {
+      const finishedStocks = s.finishedStocks.filter((item) => item.id !== id);
+      savePersisted(persistSlice({ ...s, finishedStocks }));
+      return { finishedStocks };
+    }),
+  getAvailableStock: (specification, grade) => {
+    const state = get();
+    const batches = state.finishedStocks.filter(
+      (fs) => fs.specification === specification && fs.grade === grade && fs.quantity > 0,
+    );
+    const total = batches.reduce((s, b) => s + b.quantity, 0);
+    return { total, batches };
+  },
+
   resetAllData: () => {
     localStorage.removeItem(STORAGE_KEY);
     set({
@@ -255,6 +370,7 @@ export const useStore = create<AppState>((set, get) => ({
       inspections: inspectionRecords,
       orders: orders,
       sales: saleRecords,
+      finishedStocks: finishedStocks,
     });
   },
 

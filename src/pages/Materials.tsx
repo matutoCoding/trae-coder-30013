@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Package, AlertTriangle, Plus, Filter, Leaf, Wheat } from 'lucide-react';
 import { RawMaterial } from '@/data/mockData';
 import { useStore } from '@/store/useStore';
+import { useBatchDrawer } from '@/contexts/BatchDrawerContext';
 
 const gradeBadge: Record<string, string> = {
   '特级': 'bg-xuan-gold/20 text-xuan-gold border-xuan-gold/30',
@@ -26,6 +27,7 @@ const emptyMaterial: Omit<RawMaterial, 'id'> = {
 
 export default function Materials() {
   const { materials, addMaterial } = useStore();
+  const { openBatch } = useBatchDrawer();
   const [typeFilter, setTypeFilter] = useState<'全部' | '青檀皮' | '稻草'>('全部');
   const [gradeFilter, setGradeFilter] = useState<string>('全部');
   const [showForm, setShowForm] = useState(false);
@@ -190,8 +192,8 @@ export default function Materials() {
             </thead>
             <tbody>
               {filtered.map((m) => (
-                <tr key={m.id}>
-                  <td className="font-medium text-xuan-ink">{m.batchNo}</td>
+                <tr key={m.id} className="hover:bg-xuan-paperDark/10 cursor-pointer" onClick={() => openBatch(m.batchNo, 'material')}>
+                  <td className="font-medium text-xuan-ochre font-mono hover:underline">{m.batchNo}</td>
                   <td>
                     <span className="inline-flex items-center gap-1">
                       {m.type === '青檀皮' ? <Leaf className="w-3.5 h-3.5 text-xuan-moss" /> : <Wheat className="w-3.5 h-3.5 text-xuan-gold" />}
