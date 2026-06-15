@@ -1,14 +1,8 @@
 import { useState, useMemo } from 'react';
-import { ShoppingCart, Package, Truck, Plus, Clock, Gift, ChevronRight, AlertTriangle, X, PackageCheck, Warehouse, AlertCircle } from 'lucide-react';
-import { Order, OrderItem } from '@/data/mockData';
+import { ShoppingCart, Package, Truck, Plus, Clock, Gift, ChevronRight, AlertTriangle, X, PackageCheck, Warehouse, AlertCircle, PenTool, Droplets, Circle } from 'lucide-react';
+import { Order, OrderItem, BundleExtra } from '@/data/mockData';
 import { useStore } from '@/store/useStore';
 import { useBatchDrawer } from '@/contexts/BatchDrawerContext';
-
-interface BundleExtra {
-  name: string;
-  quantity: number;
-  unitPrice: number;
-}
 
 const statusBadge: Record<Order['status'], string> = {
   '待排产': 'bg-xuan-gold/20 text-xuan-gold border-xuan-gold/30',
@@ -136,6 +130,7 @@ export default function Orders() {
       return;
     }
     const total = itemsTotal;
+    const savedExtras = formExtras.filter(e => e.name && e.quantity > 0);
 
     if (editingOrderId) {
       updateOrder(editingOrderId, {
@@ -143,6 +138,7 @@ export default function Orders() {
         deliveryDate: formDelivery,
         status: formStatus,
         items: formItems,
+        extras: savedExtras.length > 0 ? savedExtras : undefined,
         totalAmount: total,
         isBundle: formIsBundle,
       });
@@ -153,6 +149,7 @@ export default function Orders() {
         orderNo: `DD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(3, '0')}`,
         customer: formCustomer,
         items: formItems,
+        extras: savedExtras.length > 0 ? savedExtras : undefined,
         status: formStatus,
         deliveryDate: formDelivery,
         totalAmount: total,
@@ -193,7 +190,7 @@ export default function Orders() {
     setFormStatus(order.status);
     setFormItems(order.items.map((i) => ({ ...i })));
     setFormIsBundle(!!order.isBundle);
-    setFormExtras([]);
+    setFormExtras(order.extras && order.extras.length > 0 ? order.extras.map(e => ({ ...e })) : []);
     setShowForm(true);
   };
 
@@ -215,13 +212,14 @@ export default function Orders() {
         orderNo: `DD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(3, '0')}`,
         customer: `${combo.name} - 散客`,
         items: combo.paperItems.map((i) => ({ ...i })),
+        extras: combo.extras.map(e => ({ ...e })),
         status: '待排产',
         deliveryDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
         totalAmount: total,
         createDate: new Date().toISOString().slice(0, 10),
         isBundle: true,
       });
-      setNotice({ type: 'success', msg: `${combo.name} 订单已直接生成` });
+      setNotice({ type: 'success', msg: `${combo.name} 订单已直接生成（含配件）` });
       setTimeout(() => setNotice(null), 2500);
       return;
     }
@@ -572,21 +570,39 @@ export default function Orders() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {order.items.map((item, idx) => (
-                        <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-xuan-paperDark/30 text-xs">
+                    <div className="space-y-2 mb-3">
+                      <div className="flex flex-wrap gap-2">
+                        {order.items.map((item, idx) => (
+                          <span key={`p${idx}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-xuan-ochre/10 text-xs border border-xuan-ochre/20">
                           <span className="text-xuan-ink">{item.specification} {item.grade}</span>
                           <span className="text-xuan-inkLight">× {item.quantity}张</span>
                           {item.batchNo && (
                             <span
                               className="text-xuan-ochre font-mono cursor-pointer hover:underline ml-0.5"
-                              onClick={() => openBatch(item.batchNo)}
+                              onClick={(e) => { e.stopPropagation(); openBatch(item.batchNo); }}
                             >
                               [{item.batchNo}]
                             </span>
                           )}
                         </span>
-                      ))}
+                        ))}
+                      </div>
+                      {order.extras && order.extras.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {order.extras.map((ex, idx) => {
+                          const iconMap: Record<string, any> = { '笔': PenTool, '墨': Droplets, '砚': Circle };
+                          const Icon = Object.keys(iconMap).find(k => ex.name.includes(k)) ? iconMap[Object.keys(iconMap).find(k => ex.name.includes(k)) as any] : Gift;
+                          return (
+                            <span key={`e${idx}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-xuan-indigo/10 text-xs border border-xuan-indigo/20 text-xuan-inkLight">
+                              <Icon className="w-3 h-3 text-xuan-indigo" />
+                              <span className="text-xuan-ink">{ex.name}</span>
+                              <span className="text-xuan-inkLight">× {ex.quantity}</span>
+                              <span className="text-xuan-indigo">¥{ex.unitPrice}</span>
+                            </span>
+                          );
+                        })}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-xuan-paperDark/30">

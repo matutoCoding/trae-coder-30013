@@ -75,6 +75,7 @@ export interface InspectionRecord {
   grade: '特皮' | '净皮' | '棉料';
   specification: '四尺' | '六尺' | '八尺' | '丈二';
   result: '合格' | '不合格';
+  qualifiedCount?: number;
   inspector: string;
   date: string;
 }
@@ -98,11 +99,18 @@ export interface FinishedStock {
   remark?: string;
 }
 
+export interface BundleExtra {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface Order {
   id: string;
   orderNo: string;
   customer: string;
   items: OrderItem[];
+  extras?: BundleExtra[];
   status: '待排产' | '生产中' | '已完成' | '已发货';
   deliveryDate: string;
   totalAmount: number;

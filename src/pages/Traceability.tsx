@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Search, FileText, BookOpen, User, QrCode, Package, FlaskConical, Layers, Sun, ClipboardCheck, ShoppingCart } from 'lucide-react';
+import { Search, FileText, BookOpen, User, QrCode, Package, FlaskConical, Layers, Sun, ClipboardCheck, ShoppingCart, Tag, Users, Hash, AlertCircle, ChevronRight } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { useBatchDrawer } from '@/contexts/BatchDrawerContext';
+import { SaleRecord } from '@/data/mockData';
 
 const stageIcons = {
   '原料入库': Package,
@@ -42,26 +43,66 @@ export default function Traceability() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchedBatch, setSearchedBatch] = useState<string>('');
   const [nodes, setNodes] = useState<ReturnType<typeof getTraceabilityByBatch> | null>(null);
+  const [matchedSales, setMatchedSales] = useState<SaleRecord[]>([]);
+  const [searchMeta, setSearchMeta] = useState<{ type: 'batch' | 'trace' | 'customer' | 'none'; label?: string } | null>(null);
 
   const handleSearch = () => {
-    if (!searchTerm.trim()) return;
     const term = searchTerm.trim();
-    const found = pulpingBatches.find(
-      (b) => b.batchNo === term || b.batchNo.includes(term)
-    );
-    if (found) {
-      setSearchedBatch(found.batchNo);
-      setNodes(getTraceabilityByBatch(found.batchNo));
-    } else {
-      setSearchedBatch(term);
-      setNodes([]);
+    if (!term) return;
+
+    setNodes(null);
+    setSearchedBatch('');
+    setMatchedSales([]);
+    setSearchMeta(null);
+
+    const byTraceCode = sales.find((s) => s.traceCode.toUpperCase() === term.toUpperCase() || s.traceCode.includes(term));
+    if (byTraceCode) {
+      const batch = pulpingBatches.find((b) => b.batchNo === byTraceCode.batchNo);
+      setSearchedBatch(byTraceCode.batchNo);
+      setNodes(batch ? getTraceabilityByBatch(byTraceCode.batchNo) : []);
+      setMatchedSales([byTraceCode]);
+      setSearchMeta({ type: 'trace', label: `溯源码 ${byTraceCode.traceCode} 对应批次 ${byTraceCode.batchNo}` });
+      return;
     }
+
+    const byBatch = pulpingBatches.find(
+      (b) => b.batchNo === term || b.batchNo.toLowerCase().includes(term.toLowerCase()),
+    );
+    if (byBatch) {
+      setSearchedBatch(byBatch.batchNo);
+      setNodes(getTraceabilityByBatch(byBatch.batchNo));
+      setMatchedSales(sales.filter((s) => s.batchNo === byBatch.batchNo));
+      setSearchMeta({ type: 'batch', label: `批次 ${byBatch.batchNo} 全链路溯源` });
+      return;
+    }
+
+    const byCustomer = sales.filter((s) => s.customer.includes(term));
+    if (byCustomer.length > 0) {
+      setMatchedSales(byCustomer);
+      setSearchedBatch('');
+      setNodes(null);
+      setSearchMeta({ type: 'customer', label: `客户「${term}」相关出库记录 ${byCustomer.length} 条` });
+      return;
+    }
+
+    const partialBatch = sales.filter((s) => s.batchNo.includes(term) || s.traceCode.includes(term));
+    if (partialBatch.length > 0) {
+      setMatchedSales(partialBatch);
+      setSearchedBatch('');
+      setNodes(null);
+      setSearchMeta({ type: 'customer', label: `模糊匹配到 ${partialBatch.length} 条出库记录` });
+      return;
+    }
+
+    setSearchMeta({ type: 'none', label: `未找到「${term}」相关的批次、溯源码或客户` });
   };
 
   const handleBatchClick = (batchNo: string) => {
     setSearchTerm(batchNo);
     setSearchedBatch(batchNo);
     setNodes(getTraceabilityByBatch(batchNo));
+    setMatchedSales(sales.filter((s) => s.batchNo === batchNo));
+    setSearchMeta({ type: 'batch', label: `批次 ${batchNo} 全链路溯源` });
   };
 
   return (
@@ -74,14 +115,14 @@ export default function Traceability() {
           <h3 className="font-serif text-lg font-semibold text-xuan-ink">批次溯源查询</h3>
         </div>
         <p className="text-sm text-xuan-inkLight mb-4">
-          输入批次号或溯源码，查询宣纸从原料到销售的完整生产链路
+          输入批次号（ZJ-...）、溯源码（TR-...）或客户名称，查询完整链路
         </p>
         <div className="flex gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-xuan-inkLight" />
             <input
               className="xuan-input w-full pl-9"
-              placeholder="输入批次号，如 ZJ-2026-001"
+              placeholder="批次号 / 溯源码 / 客户名称，如 ZJ-2026-001"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -101,17 +142,135 @@ export default function Traceability() {
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="text-xs text-xuan-inkLight">快速查询：</span>
-          {pulpingBatches.slice(0, 4).map((b) => (
+          {pulpingBatches.slice(0, 3).map((b) => (
             <button
               key={b.id}
-              className="text-xs px-2 py-0.5 rounded-md bg-xuan-paperDark/30 text-xuan-inkLight hover:bg-xuan-ochre/20 hover:text-xuan-ochre transition"
+              className="text-xs px-2 py-0.5 rounded-md bg-xuan-paperDark/30 text-xuan-inkLight hover:bg-xuan-ochre/20 hover:text-xuan-ochre transition flex items-center gap-1"
               onClick={() => handleBatchClick(b.batchNo)}
             >
+              <Hash className="w-3 h-3" />
               {b.batchNo}
+            </button>
+          ))}
+          {sales.slice(0, 2).map((s) => (
+            <button
+              key={s.traceCode}
+              className="text-xs px-2 py-0.5 rounded-md bg-xuan-paperDark/30 text-xuan-inkLight hover:bg-xuan-moss/20 hover:text-xuan-moss transition flex items-center gap-1"
+              onClick={() => {
+                setSearchTerm(s.traceCode);
+                setSearchedBatch(s.batchNo);
+                setNodes(getTraceabilityByBatch(s.batchNo));
+                setMatchedSales([s]);
+                setSearchMeta({ type: 'trace', label: `溯源码 ${s.traceCode} 对应批次 ${s.batchNo}` });
+              }}
+            >
+              <Tag className="w-3 h-3" />
+              {s.traceCode}
+            </button>
+          ))}
+          {sales.slice(0, 1).map((s) => (
+            <button
+              key={`c${s.id}`}
+              className="text-xs px-2 py-0.5 rounded-md bg-xuan-paperDark/30 text-xuan-inkLight hover:bg-xuan-indigo/20 hover:text-xuan-indigo transition flex items-center gap-1"
+              onClick={() => {
+                const related = sales.filter((x) => x.customer === s.customer);
+                setSearchTerm(s.customer);
+                setMatchedSales(related);
+                setSearchedBatch('');
+                setNodes(null);
+                setSearchMeta({ type: 'customer', label: `客户「${s.customer}」相关出库记录 ${related.length} 条` });
+              }}
+            >
+              <Users className="w-3 h-3" />
+              {s.customer}
             </button>
           ))}
         </div>
       </div>
+
+      {searchMeta && (
+        <div className={`xuan-card p-3 flex items-center gap-2 text-sm animate-fade-in ${
+          searchMeta.type === 'none'
+            ? 'text-xuan-cinnabar border border-xuan-cinnabar/30 bg-xuan-cinnabar/5'
+            : searchMeta.type === 'trace'
+            ? 'text-xuan-moss border border-xuan-moss/30 bg-xuan-moss/5'
+            : searchMeta.type === 'customer'
+            ? 'text-xuan-indigo border border-xuan-indigo/30 bg-xuan-indigo/5'
+            : 'text-xuan-ochre border border-xuan-ochre/30 bg-xuan-ochre/5'
+        }`}>
+          {searchMeta.type === 'none' ? <AlertCircle className="w-4 h-4 shrink-0" /> : searchMeta.type === 'trace' ? <Tag className="w-4 h-4 shrink-0" /> : searchMeta.type === 'customer' ? <Users className="w-4 h-4 shrink-0" /> : <Hash className="w-4 h-4 shrink-0" />}
+          <span>{searchMeta.label}</span>
+        </div>
+      )}
+
+      {matchedSales.length > 0 && !nodes && (
+        <div className="xuan-card overflow-hidden animate-fade-in-up">
+          <div className="p-4 border-b border-xuan-paperDark/30 flex items-center justify-between">
+            <h3 className="font-serif font-semibold text-xuan-ink flex items-center gap-2"><ShoppingCart className="w-4 h-4 text-xuan-ochre" />匹配的销售记录</h3>
+            <span className="text-xs text-xuan-inkLight">共 {matchedSales.length} 条 · 点击批次号查看详情</span>
+          </div>
+          <table className="xuan-table w-full">
+            <thead>
+              <tr>
+                <th>溯源码</th>
+                <th>批次号</th>
+                <th>客户</th>
+                <th>产品</th>
+                <th>数量</th>
+                <th>金额</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matchedSales.map((s) => (
+                <tr key={s.id}>
+                  <td className="font-mono text-xs text-xuan-moss">{s.traceCode}</td>
+                  <td className="font-medium text-xuan-ink">{s.batchNo}</td>
+                  <td>{s.customer}</td>
+                  <td>{s.product}</td>
+                  <td>{s.quantity}</td>
+                  <td className="text-xuan-ochre font-medium">¥{s.amount.toLocaleString()}</td>
+                  <td>
+                    <span className={`xuan-badge border text-xs ${paymentBadge[s.paymentStatus] || ''}`}>
+                      {s.paymentStatus}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      className="text-xs text-xuan-ochre hover:underline flex items-center gap-0.5"
+                      onClick={() => handleBatchClick(s.batchNo)}
+                    >
+                      溯源 <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {matchedSales.length > 0 && nodes && nodes.length > 0 && (
+        <div className="xuan-card p-4 animate-fade-in border border-xuan-moss/20">
+          <div className="flex items-center gap-2 text-xs text-xuan-moss mb-2">
+            <ShoppingCart className="w-3.5 h-3.5" />
+            匹配到对应的销售出库记录：
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {matchedSales.map((s) => (
+              <div key={s.id} className="flex items-center justify-between bg-xuan-moss/5 border border-xuan-moss/15 rounded-lg px-3 py-2">
+                <div className="text-xs">
+                  <span className="font-mono text-xuan-moss mr-2">{s.traceCode}</span>
+                  <span className="text-xuan-ink">{s.customer}</span>
+                  <span className="text-xuan-inkLight"> · {s.product} × {s.quantity}</span>
+                </div>
+                <span className="text-sm font-medium text-xuan-ochre">¥{s.amount.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {nodes && nodes.length > 0 && (
         <div className="xuan-card p-6">

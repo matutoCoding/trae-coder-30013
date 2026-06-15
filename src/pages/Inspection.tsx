@@ -22,6 +22,7 @@ const emptyForm: Omit<InspectionRecord, 'id'> = {
   grade: '净皮',
   specification: '四尺',
   result: '合格',
+  qualifiedCount: 800,
   inspector: '',
   date: new Date().toISOString().slice(0, 10),
 };
@@ -74,8 +75,18 @@ export default function Inspection() {
     { subject: '吸墨性', 特皮: 92, 净皮: 88, 棉料: 85, fullMark: 100 },
   ];
 
+  const defaultQualifiedBySpec: Record<string, number> = { '四尺': 800, '六尺': 500, '八尺': 300, '丈二': 100 };
+
   const updateForm = <K extends keyof typeof form>(key: K, value: typeof form[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    if (key === 'specification' && typeof value === 'string') {
+      setForm((prev) => ({
+        ...prev,
+        specification: value as typeof prev.specification,
+        qualifiedCount: defaultQualifiedBySpec[value] ?? 500,
+      }));
+    } else {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    }
   };
 
   const handleSubmit = () => {
@@ -191,6 +202,13 @@ export default function Inspection() {
                     <option value="不合格">不合格</option>
                   </select>
                 </div>
+                {form.result === '合格' && (
+                  <div>
+                    <label className="block text-sm text-xuan-inkLight mb-1">合格入库数量(张)</label>
+                    <input className="xuan-input w-full" type="number" value={form.qualifiedCount ?? ''} onChange={(e) => updateForm('qualifiedCount', +e.target.value)} />
+                    <p className="text-[10px] text-xuan-inkLight mt-1">按规格默认：四尺800 / 六尺500 / 八尺300 / 丈二100</p>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm text-xuan-inkLight mb-1">拉力强度(N)</label>
                   <input className="xuan-input w-full" type="number" step="0.1" value={form.tensileStrength} onChange={(e) => updateForm('tensileStrength', +e.target.value)} />
@@ -272,6 +290,7 @@ export default function Inspection() {
                     <th>等级</th>
                     <th>规格</th>
                     <th>结果</th>
+                    <th>合格数</th>
                     <th>检验员</th>
                     <th>日期</th>
                   </tr>
@@ -300,6 +319,9 @@ export default function Inspection() {
                             ? 'bg-xuan-moss/20 text-xuan-moss border-xuan-moss/30'
                             : 'bg-xuan-cinnabar/20 text-xuan-cinnabar border-xuan-cinnabar/30'
                         }`}>{i.result}</span>
+                      </td>
+                      <td className={i.result === '合格' ? 'text-xuan-moss font-medium' : 'text-gray-300'}>
+                        {i.result === '合格' ? `${i.qualifiedCount ?? defaultQualifiedBySpec[i.specification]}张` : '-'}
                       </td>
                       <td>{i.inspector}</td>
                       <td>{i.date}</td>

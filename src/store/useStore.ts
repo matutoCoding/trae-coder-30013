@@ -214,6 +214,8 @@ export const useStore = create<AppState>((set, get) => ({
         const exists = finishedStocks.find(
           (fs) => fs.batchNo === r.batchNo && fs.specification === r.specification && fs.grade === r.grade,
         );
+        const defaultCount: Record<string, number> = { '四尺': 800, '六尺': 500, '八尺': 300, '丈二': 100 };
+        const qty = r.qualifiedCount && r.qualifiedCount > 0 ? r.qualifiedCount : defaultCount[r.specification] ?? 500;
         if (!exists) {
           finishedStocks = [
             ...finishedStocks,
@@ -222,12 +224,18 @@ export const useStore = create<AppState>((set, get) => ({
               batchNo: r.batchNo,
               specification: r.specification,
               grade: r.grade,
-              quantity: 0,
+              quantity: qty,
               unit: '张',
               warehouseDate: r.date,
-              remark: '检验合格自动入库',
+              remark: `检验合格入库${r.qualifiedCount ? '（手动填数）' : '（默认估算）'}`,
             },
           ];
+        } else {
+          finishedStocks = finishedStocks.map((fs) =>
+            fs.batchNo === r.batchNo && fs.specification === r.specification && fs.grade === r.grade
+              ? { ...fs, quantity: fs.quantity + qty, remark: (fs.remark || '') + ` 追加${qty}张` }
+              : fs,
+          );
         }
       }
       savePersisted(persistSlice({ ...s, inspections, finishedStocks }));
